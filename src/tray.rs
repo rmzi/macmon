@@ -741,7 +741,7 @@ define_class!(
             kill_pty_child();
             let exe = std::env::current_exe().expect("can't find current exe");
             let mut cmd = std::process::Command::new(&exe);
-            cmd.arg("tray");
+            cmd.arg("start");
             cmd.env("_MACMON_TRAY_BG", "1");
             cmd.stdin(std::process::Stdio::null());
             cmd.stdout(std::process::Stdio::null());
@@ -866,7 +866,7 @@ pub fn run_tray() -> Result<(), Box<dyn Error>> {
   if std::env::var("_MACMON_TRAY_BG").is_err() {
     let exe = std::env::current_exe()?;
     let mut cmd = std::process::Command::new(exe);
-    cmd.arg("tray");
+    cmd.arg("start");
     cmd.env("_MACMON_TRAY_BG", "1");
     cmd.stdin(std::process::Stdio::null());
     cmd.stdout(std::process::Stdio::null());
