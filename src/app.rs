@@ -239,14 +239,36 @@ fn run_inputs_thread(tx: mpsc::Sender<Event>, tick: u64) {
 
 fn run_sampler_thread(tx: mpsc::Sender<Event>, msec: Arc<RwLock<u32>>) {
   std::thread::spawn(move || {
-    let mut sampler = Sampler::new().unwrap();
+    let mut sampler = match Sampler::new() {
+      Ok(s) => s,
+      Err(e) => {
+        eprintln!("Failed to initialize sampler: {}", e);
+        std::process::exit(1);
+      }
+    };
 
     // Send initial metrics
-    tx.send(Event::Update(sampler.get_metrics(100).unwrap())).unwrap();
+    match sampler.get_metrics(100) {
+      Ok(m) => { let _ = tx.send(Event::Update(m)); }
+      Err(e) => {
+        eprintln!("Failed to get initial metrics: {}", e);
+        std::process::exit(1);
+      }
+    }
 
     loop {
       let msec = *msec.read().unwrap();
-      tx.send(Event::Update(sampler.get_metrics(msec).unwrap())).unwrap();
+      match sampler.get_metrics(msec) {
+        Ok(m) => {
+          if tx.send(Event::Update(m)).is_err() {
+            break; // receiver dropped, app is shutting down
+          }
+        }
+        Err(e) => {
+          eprintln!("Metrics error: {}", e);
+          // Continue — transient errors shouldn't kill the app
+        }
+      }
     }
   });
 }

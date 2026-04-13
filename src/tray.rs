@@ -401,11 +401,54 @@ fn spawn_pty_and_reader(rows: u16, cols: u16) {
       }
     }
 
-    // Child exited — reap it
-    {
+    // Child exited — reap and check status
+    let exit_status = {
       let mut handle = PTY_HANDLE.get().unwrap().lock().unwrap();
       if let Some(mut h) = handle.take() {
-        let _ = h.child.wait();
+        h.child.wait().ok()
+      } else {
+        None
+      }
+    };
+
+    let crashed = match &exit_status {
+      Some(status) => !status.success(),
+      None => true,
+    };
+
+    if crashed {
+      // Show crash info in the terminal view instead of hiding
+      let msg = match &exit_status {
+        Some(status) => format!("\r\n\x1b[31;1m[macmon exited: {}]\x1b[0m\r\n", status),
+        None => "\r\n\x1b[31;1m[macmon exited unexpectedly]\x1b[0m\r\n".to_string(),
+      };
+      let retry_msg = "\x1b[33mRetrying in 3 seconds...\x1b[0m\r\n";
+      {
+        let mut parser = TERM_STATE.get().unwrap().lock().unwrap();
+        parser.process(msg.as_bytes());
+        parser.process(retry_msg.as_bytes());
+      }
+      signal_redraw();
+
+      // Auto-retry after a delay
+      std::thread::sleep(std::time::Duration::from_secs(3));
+
+      // Respawn if window is still visible
+      let win_ptr = {
+        let tray = TRAY.get().unwrap().lock().unwrap();
+        tray.window
+      };
+      if !win_ptr.is_null() {
+        let is_visible: bool = unsafe { msg_send![win_ptr, isVisible] };
+        if is_visible {
+          let content_size: NSSize = unsafe {
+            let content_rect: NSRect = msg_send![win_ptr, contentLayoutRect];
+            content_rect.size
+          };
+          let (cols, rows) = cols_rows_for_size(content_size);
+          spawn_pty_and_reader(rows, cols);
+          return;
+        }
       }
     }
 
