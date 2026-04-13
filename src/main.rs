@@ -29,8 +29,8 @@ enum Commands {
   /// Print debug information
   Debug,
 
-  /// Run in inline terminal mode (no menu bar icon)
-  Tui,
+  /// Start as a menu bar icon with a native terminal window
+  Start,
 }
 
 /// Sudoless performance monitoring CLI tool for Apple Silicon processors
@@ -75,7 +75,8 @@ fn main() -> Result<(), Box<dyn Error>> {
       }
     }
     Some(Commands::Debug) => debug::print_debug()?,
-    Some(Commands::Tui) => {
+    Some(Commands::Start) => tray::run_tray()?,
+    _ => {
       let mut app = App::new()?;
 
       let matches = Cli::command().get_matches();
@@ -86,7 +87,6 @@ fn main() -> Result<(), Box<dyn Error>> {
 
       app.run_loop(msec)?;
     }
-    _ => tray::run_tray()?,
   }
 
   Ok(())

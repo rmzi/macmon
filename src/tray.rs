@@ -366,7 +366,6 @@ fn spawn_pty_and_reader(rows: u16, cols: u16) {
 
   let exe = std::env::current_exe().unwrap_or_default();
   let mut cmd = CommandBuilder::new(&exe);
-  cmd.arg("tui");
   cmd.env("TERM", "xterm-256color");
 
   let child = pty_pair.slave.spawn_command(cmd).expect("Failed to spawn child");
